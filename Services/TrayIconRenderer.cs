@@ -11,10 +11,13 @@ namespace Waqt.Services
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool DestroyIcon(IntPtr handle);
 
+        private static Icon? _activeIcon;
+        private static IntPtr _activeHIcon = IntPtr.Zero;
+
         public static Icon RenderMinuteIcon(int minutes)
         {
             const int size = 32;
-            var bitmap = new Bitmap(size, size);
+            using var bitmap = new Bitmap(size, size);
 
             using (var g = Graphics.FromImage(bitmap))
             {
@@ -66,14 +69,31 @@ namespace Waqt.Services
                 }
             }
 
-            IntPtr hIcon = bitmap.GetHicon();
-            var icon = Icon.FromHandle(hIcon);
-            // Create a cloned icon that owns its handle so the bitmap can be disposed
-            var clonedIcon = (Icon)icon.Clone();
-            DestroyIcon(hIcon);
-            bitmap.Dispose();
+            IntPtr newHIcon = bitmap.GetHicon();
+            var newIcon = Icon.FromHandle(newHIcon);
 
-            return clonedIcon;
+            // Clean up previous native icon handle once new icon is safely created
+            if (_activeHIcon != IntPtr.Zero)
+            {
+                DestroyIcon(_activeHIcon);
+            }
+            _activeIcon?.Dispose();
+
+            _activeHIcon = newHIcon;
+            _activeIcon = newIcon;
+
+            return newIcon;
+        }
+
+        public static void DisposeActiveIcon()
+        {
+            if (_activeHIcon != IntPtr.Zero)
+            {
+                DestroyIcon(_activeHIcon);
+                _activeHIcon = IntPtr.Zero;
+            }
+            _activeIcon?.Dispose();
+            _activeIcon = null;
         }
 
         public static void CleanupIcon(IntPtr handle)

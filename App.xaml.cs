@@ -114,6 +114,16 @@ namespace Waqt
                 _mutex = null;
             }
 
+            // Dispose active dynamic tray icon
+            try
+            {
+                Waqt.Services.TrayIconRenderer.DisposeActiveIcon();
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+
             base.OnExit(e);
         }
 
