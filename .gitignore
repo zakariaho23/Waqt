@@ -1,6 +1,10 @@
 ## Build results
 [Bb]in/
 [Oo]bj/
+publish/
+publish-*/
+dist/
+*.zip
 
 ## Visual Studio / VS Code
 .vs/
