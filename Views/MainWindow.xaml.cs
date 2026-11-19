@@ -16,17 +16,24 @@ using Waqt.Models;
 using Waqt.Services;
 using DailyVerseService = Waqt.Services.DailyVerseService;
 
-namespace Waqt.Views
+namespace Waqt.Views;
+
+public partial class MainWindow : Window
 {
-    public partial class MainWindow : Window
-    {
-        private enum AppTab
+    private enum AppTab
         {
             Today,
             Qibla,
             Monthly,
             Settings
         }
+
+        // ───────────────────────── UI Element Accessors ─────────────────────────
+        private Slider? SliderHeading => (Slider?)FindName("sliderHeading");
+        private Border? BadgeQiblaAlignment => (Border?)FindName("badgeQiblaAlignment");
+        private TextBlock? TxtTurnGuidance => (TextBlock?)FindName("txtTurnGuidance");
+        private TextBlock? TxtCurrentHeading => (TextBlock?)FindName("txtCurrentHeading");
+        private TextBlock? TxtVerseCopyFeedback => (TextBlock?)FindName("txtVerseCopyFeedback");
 
         // ───────────────────────── Fields ─────────────────────────
         private readonly AlAdhanService _alAdhanService = new();
@@ -35,8 +42,8 @@ namespace Waqt.Views
         private readonly LocationDatabaseService _locationDb = new();
         private AppSettings _settings;
 
-        private List<string> _allCountries = new();
-        private List<string> _currentCountryCities = new();
+        private List<string> _allCountries = [];
+        private List<string> _currentCountryCities = [];
         private MonthlySchedule? _currentMonth;
         private bool _isFilteringLocation = false;
 
@@ -106,7 +113,7 @@ namespace Waqt.Views
 
                 // Initialize world locations database
                 await _locationDb.InitializeAsync();
-                _allCountries = _locationDb.GetCountries().ToList();
+                _allCountries = [.. _locationDb.GetCountries()];
                 Dispatcher.Invoke(SyncSettingsToUI);
 
                 // Fetch or load cached schedule for today
@@ -173,10 +180,7 @@ namespace Waqt.Views
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
             };
 
-            slideAnim.Completed += (s, e) =>
-            {
-                Visibility = Visibility.Collapsed;
-            };
+            slideAnim.Completed += (_, _) => Visibility = Visibility.Collapsed;
 
             MainContainer.BeginAnimation(OpacityProperty, opacityAnim);
             FlyoutTransform.BeginAnimation(TranslateTransform.YProperty, slideAnim);
@@ -287,7 +291,7 @@ namespace Waqt.Views
                     TimeSpan remaining = _prayerEngine.TimeUntilNext ?? TimeSpan.Zero;
                     txtCountdown.Text = remaining.ToString(@"hh\:mm\:ss");
 
-                    double cardInnerWidth = 324.0;
+                    const double cardInnerWidth = 324.0;
                     pbProgressFill.Width = Math.Clamp(_prayerEngine.ProgressPercentage * cardInnerWidth, 0.0, cardInnerWidth);
                 }
                 else
@@ -394,14 +398,14 @@ namespace Waqt.Views
                 if (_hardwareCompass != null)
                 {
                     _hardwareCompass.ReportInterval = 100;
-                    _hardwareCompass.ReadingChanged += (s, args) =>
+                    _hardwareCompass.ReadingChanged += (_, args) =>
                     {
                         Dispatcher.Invoke(() =>
                         {
                             double? heading = args.Reading.HeadingTrueNorth ?? args.Reading.HeadingMagneticNorth;
-                            if (heading.HasValue && sliderHeading != null)
+                            if (heading.HasValue && SliderHeading is { } slider)
                             {
-                                sliderHeading.Value = Math.Round(heading.Value, 0);
+                                slider.Value = Math.Round(heading.Value, 0);
                             }
                         });
                     };
@@ -424,7 +428,7 @@ namespace Waqt.Views
                 lat = known.Value.Lat;
                 lon = known.Value.Lng;
             }
-            else if (_currentMonth != null && _currentMonth.Latitude.HasValue && _currentMonth.Longitude.HasValue)
+            else if (_currentMonth?.Latitude != null && _currentMonth?.Longitude != null)
             {
                 lat = _currentMonth.Latitude.Value;
                 lon = _currentMonth.Longitude.Value;
@@ -458,22 +462,28 @@ namespace Waqt.Views
 
             if (isAligned)
             {
-                badgeQiblaAlignment.Visibility = Visibility.Visible;
-                txtTurnGuidance.Text = "You are directly facing the Holy Kaaba! ✓";
-                txtTurnGuidance.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                if (BadgeQiblaAlignment is { } badge) badge.Visibility = Visibility.Visible;
+                if (TxtTurnGuidance is { } guidance)
+                {
+                    guidance.Text = "You are directly facing the Holy Kaaba! ✓";
+                    guidance.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                }
             }
             else
             {
-                badgeQiblaAlignment.Visibility = Visibility.Collapsed;
-                txtTurnGuidance.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
-                if (relativeAngle <= 180.0)
+                if (BadgeQiblaAlignment is { } badge) badge.Visibility = Visibility.Collapsed;
+                if (TxtTurnGuidance is { } guidance)
                 {
-                    txtTurnGuidance.Text = $"Turn {relativeAngle:0}° to your right to face the Kaaba";
-                }
-                else
-                {
-                    double turnLeft = 360.0 - relativeAngle;
-                    txtTurnGuidance.Text = $"Turn {turnLeft:0}° to your left to face the Kaaba";
+                    guidance.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
+                    if (relativeAngle <= 180.0)
+                    {
+                        guidance.Text = $"Turn {relativeAngle:0}° to your right to face the Kaaba";
+                    }
+                    else
+                    {
+                        double turnLeft = 360.0 - relativeAngle;
+                        guidance.Text = $"Turn {turnLeft:0}° to your left to face the Kaaba";
+                    }
                 }
             }
 
@@ -494,29 +504,32 @@ namespace Waqt.Views
         private void SliderHeading_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             _currentHeading = e.NewValue;
-            if (txtCurrentHeading != null)
+            if (TxtCurrentHeading is { } txt)
             {
-                txtCurrentHeading.Text = $"{_currentHeading:0}° ({GetHeadingCardinalText(_currentHeading)})";
+                txt.Text = $"{_currentHeading:0}° ({GetHeadingCardinalText(_currentHeading)})";
             }
             ApplyCompassRotation(animate: false);
         }
 
         private void BtnPresetHeading_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string tagStr && double.TryParse(tagStr, out double heading))
+            if (sender is Button btn && btn.Tag is string tagStr && double.TryParse(tagStr, out double heading) && SliderHeading is { } slider)
             {
-                sliderHeading.Value = heading;
+                slider.Value = heading;
             }
         }
 
         private void BtnPresetFaceQibla_Click(object sender, RoutedEventArgs e)
         {
-            sliderHeading.Value = Math.Round(_calculatedQiblaBearing, 0);
+            if (SliderHeading is { } slider)
+            {
+                slider.Value = Math.Round(_calculatedQiblaBearing, 0);
+            }
         }
 
         private static string GetHeadingCardinalText(double heading)
         {
-            heading = (heading % 360.0 + 360.0) % 360.0;
+            heading = ((heading % 360.0) + 360.0) % 360.0;
             if (heading >= 337.5 || heading < 22.5) return "Facing North";
             if (heading < 67.5) return "Facing NE";
             if (heading < 112.5) return "Facing East";
@@ -583,19 +596,19 @@ namespace Waqt.Views
             sb.AppendLine($"Waqt Monthly Prayer Timetable — {DateTime.Now:MMMM yyyy}");
             sb.AppendLine($"{_settings.City}, {_settings.Country}");
             sb.AppendLine(new string('-', 72));
-            sb.AppendLine(string.Format("{0,-14} {1,-10} {2,-7} {3,-7} {4,-7} {5,-7} {6,-7}", "Date", "Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"));
+            sb.AppendFormat("{0,-14} {1,-10} {2,-7} {3,-7} {4,-7} {5,-7} {6,-7}", "Date", "Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha").AppendLine();
             sb.AppendLine(new string('-', 72));
 
             foreach (var d in _currentMonth.Days)
             {
-                sb.AppendLine(string.Format("{0,-14} {1,-10} {2,-7} {3,-7} {4,-7} {5,-7} {6,-7}",
+                sb.AppendFormat("{0,-14} {1,-10} {2,-7} {3,-7} {4,-7} {5,-7} {6,-7}",
                     d.Date.ToString("dd MMM (ddd)"),
                     FormatPrayerTime(d, PrayerType.Fajr),
                     FormatPrayerTime(d, PrayerType.Sunrise),
                     FormatPrayerTime(d, PrayerType.Dhuhr),
                     FormatPrayerTime(d, PrayerType.Asr),
                     FormatPrayerTime(d, PrayerType.Maghrib),
-                    FormatPrayerTime(d, PrayerType.Isha)));
+                    FormatPrayerTime(d, PrayerType.Isha)).AppendLine();
             }
 
             Clipboard.SetText(sb.ToString());
@@ -632,10 +645,7 @@ namespace Waqt.Views
         // ───────────────────────── Audio Handlers ─────────────────────────
         private void OnAudioPlaybackStateChanged(bool isPlaying)
         {
-            Dispatcher.Invoke(() =>
-            {
-                bannerAudioPlaying.Visibility = isPlaying ? Visibility.Visible : Visibility.Collapsed;
-            });
+            Dispatcher.Invoke(() => bannerAudioPlaying.Visibility = isPlaying ? Visibility.Visible : Visibility.Collapsed);
         }
 
         private void BtnStopAudio_Click(object sender, RoutedEventArgs e)
@@ -667,11 +677,12 @@ namespace Waqt.Views
 
                 Clipboard.SetText(sb.ToString().Trim());
 
-                txtVerseCopyFeedback.Visibility = Visibility.Visible;
+                var feedback = TxtVerseCopyFeedback;
+                if (feedback != null) feedback.Visibility = Visibility.Visible;
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.8) };
-                timer.Tick += (s, ev) =>
+                timer.Tick += (_, _) =>
                 {
-                    txtVerseCopyFeedback.Visibility = Visibility.Collapsed;
+                    if (feedback != null) feedback.Visibility = Visibility.Collapsed;
                     timer.Stop();
                 };
                 timer.Start();
@@ -716,9 +727,9 @@ namespace Waqt.Views
                     trayMenuNextPrayer.Header = $"🕌 Waqt • {_settings.City}";
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignore transient tooltip errors
+                Debug.WriteLine($"[MainWindow] Tooltip update: {ex.Message}");
             }
         }
 
@@ -920,7 +931,7 @@ namespace Waqt.Views
             _isFilteringLocation = true;
             try
             {
-                _allCountries = _locationDb.GetCountries().ToList();
+                _allCountries = [.. _locationDb.GetCountries()];
                 cmbCountry.ItemsSource = _allCountries;
 
                 var matchedCountry = _allCountries.FirstOrDefault(c => c.Equals(_settings.Country, StringComparison.OrdinalIgnoreCase));
@@ -934,7 +945,7 @@ namespace Waqt.Views
                 }
 
                 string currentCountry = cmbCountry.SelectedItem as string ?? _settings.Country;
-                _currentCountryCities = _locationDb.GetCitiesForCountry(currentCountry).ToList();
+                _currentCountryCities = [.. _locationDb.GetCitiesForCountry(currentCountry)];
 
                 if (!string.IsNullOrWhiteSpace(_settings.City) &&
                     !_currentCountryCities.Any(c => c.Equals(_settings.City, StringComparison.OrdinalIgnoreCase)))
@@ -1103,7 +1114,7 @@ namespace Waqt.Views
                             cmbCountry.SelectedItem = detected.Value.Country;
                         }
 
-                        _currentCountryCities = _locationDb.GetCitiesForCountry(detected.Value.Country).ToList();
+                        _currentCountryCities = [.. _locationDb.GetCitiesForCountry(detected.Value.Country)];
                         if (!_currentCountryCities.Any(c => c.Equals(detected.Value.City, StringComparison.OrdinalIgnoreCase)))
                         {
                             _currentCountryCities.Insert(0, detected.Value.City);
@@ -1181,7 +1192,7 @@ namespace Waqt.Views
                     Filter = "Audio Files (*.mp3;*.wav)|*.mp3;*.wav|MP3 Files (*.mp3)|*.mp3|WAV Files (*.wav)|*.wav|All Files (*.*)|*.*"
                 };
 
-                if (dialog.ShowDialog() == true)
+                if (dialog.ShowDialog() is true)
                 {
                     _settings.CustomAthanFilePath = dialog.FileName;
                     txtAudioPath.Text = Path.GetFileName(dialog.FileName);
@@ -1222,11 +1233,11 @@ namespace Waqt.Views
             _settings.Country = country;
             _settings.CalculationMethod = GetSelectedMethodId();
             _settings.AsrJuristic = GetSelectedSchoolId();
-            _settings.Use12HourFormat = chk12HourFormat.IsChecked == true;
+            _settings.Use12HourFormat = chk12HourFormat.IsChecked is true;
             _settings.ShowFastingCard = false;
-            _settings.ShowDailyVerse = chkShowDailyVerse.IsChecked == true;
-            _settings.ToastNotificationsEnabled = chkToastEnabled.IsChecked == true;
-            _settings.PlayAthanEnabled = chkAthanEnabled.IsChecked == true;
+            _settings.ShowDailyVerse = chkShowDailyVerse.IsChecked is true;
+            _settings.ToastNotificationsEnabled = chkToastEnabled.IsChecked is true;
+            _settings.PlayAthanEnabled = chkAthanEnabled.IsChecked is true;
 
             if (cmbPreReminder.SelectedItem is ComboBoxItem reminderItem &&
                 int.TryParse(reminderItem.Tag?.ToString(), out int preMins))
@@ -1241,7 +1252,7 @@ namespace Waqt.Views
             _settings.PrayerOffsets[PrayerType.Maghrib] = (int)sliderOffsetMaghrib.Value;
             _settings.PrayerOffsets[PrayerType.Isha] = (int)sliderOffsetIsha.Value;
 
-            bool startup = chkLaunchStartup.IsChecked == true;
+            bool startup = chkLaunchStartup.IsChecked is true;
             _settings.LaunchOnStartup = startup;
             StartupService.SetStartupEnabled(startup);
 
@@ -1280,4 +1291,3 @@ namespace Waqt.Views
             return 0;
         }
     }
-}
