@@ -1,0 +1,12 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+
+## Visual Studio / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+## Logs & caches
+*.log
