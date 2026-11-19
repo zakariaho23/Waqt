@@ -40,7 +40,7 @@ public partial class MainWindow : Window
         private readonly PrayerEngineService _prayerEngine = new();
         private readonly NotificationAndAudioService _notificationService = new();
         private readonly LocationDatabaseService _locationDb = new();
-        private AppSettings _settings;
+        private readonly AppSettings _settings;
 
         private List<string> _allCountries = [];
         private List<string> _currentCountryCities = [];
