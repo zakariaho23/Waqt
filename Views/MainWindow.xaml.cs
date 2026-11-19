@@ -14,6 +14,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using Waqt.Models;
 using Waqt.Services;
+using DailyVerseService = Waqt.Services.DailyVerseService;
 
 namespace Waqt.Views
 {

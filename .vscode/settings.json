@@ -1,3 +1,7 @@
 {
-    "dotnet.defaultSolution": "Waqt.sln"
+    "dotnet.defaultSolution": "Waqt.sln",
+    "csharp-dev-tools.solutionViewer.selectedWorkspaceSolutions": [
+        "Waqt.sln"
+    ],
+    "omnisharp.defaultLaunchSolution": "Waqt.sln"
 }
